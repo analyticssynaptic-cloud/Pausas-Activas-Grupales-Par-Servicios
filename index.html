@@ -689,20 +689,13 @@ footer{background:var(--ink);color:#fff;padding:50px 0 28px;margin-top:50px}
     <div class="input-group">
       <label class="input-label">Tu nombre</label>
       <input type="text" class="input-pro" id="user-name-input" placeholder="Ej: María Gómez" autocomplete="off">
-    </div>
-
-    <div class="input-group">
-      <label class="input-label">URL del Backend (Apps Script)</label>
-      <input type="text" class="input-pro" id="backend-url-input" placeholder="https://script.google.com/macros/s/AKfy.../exec" autocomplete="off">
       <div style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5">
-        Pega aquí la URL del Web App de Google Apps Script.<br>
-        <strong>Si la dejas vacía, todo funciona pero no se guarda nada.</strong>
+        Se usará para identificar tus respuestas y evidencias en el Sheet del equipo.
       </div>
     </div>
 
     <div class="modal-actions">
       <button class="btn-pri green" onclick="guardarUsuario()">Guardar y empezar</button>
-      <button class="btn-sec" onclick="cerrarModal('modal-user')">Más tarde</button>
     </div>
   </div>
 </div>
@@ -735,8 +728,8 @@ footer{background:var(--ink);color:#fff;padding:50px 0 28px;margin-top:50px}
    CONFIG · usuario · backend
 ═══════════════════════════════════════════════════════ */
 const STORAGE_KEY = 'par_user_v3';
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbw6FLeN_-z9xe9sn6-3YZFnYazxjOUrvSD3j03RAlP-9jd9IvGHvy-rVLRbGVhIN8inHw/exec';
 let usuario = '';
-let backendUrl = '';
 let puntaje = 0;
 
 function cargarUsuario() {
@@ -745,7 +738,6 @@ function cargarUsuario() {
     if (raw) {
       const o = JSON.parse(raw);
       usuario = o.nombre || '';
-      backendUrl = o.url || '';
       puntaje = o.pts || 0;
     }
   } catch(e){}
@@ -753,7 +745,7 @@ function cargarUsuario() {
 }
 function persistirUsuario() {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ nombre: usuario, url: backendUrl, pts: puntaje }));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ nombre: usuario, pts: puntaje }));
   } catch(e){}
 }
 function refrescarUI() {
