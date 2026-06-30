@@ -781,19 +781,22 @@ function sumarPuntos(n) {
 }
 function abrirModal(id) { document.getElementById(id).classList.add('show'); }
 function cerrarModal(id) { document.getElementById(id).classList.remove('show'); }
-function guardarUsuario() {
+async function guardarUsuario() {
   const n = document.getElementById('user-name-input').value.trim();
   usuario = n || 'Invitado';
   persistirUsuario();
   refrescarUI();
   cerrarModal('modal-user');
   toast('¡Bienvenido, ' + usuario + '!', 'ok');
+  await enviarBackend('inicio_sesion', { evento: 'Guardar y empezar' });
 }
-function entrarInvitado() {
+async function entrarInvitado() {
   usuario = 'Invitado';
   persistirUsuario();
   refrescarUI();
   cerrarModal('modal-user');
+  toast('¡Bienvenido, Invitado!', 'ok');
+  await enviarBackend('inicio_sesion', { evento: 'Entrar como invitado' });
 }
 
 document.getElementById('nav-user-btn').addEventListener('click', () => {
@@ -944,85 +947,87 @@ function dibujarRuleta() {
     ctx.restore();
   }
 }
-dibujarRuleta();
+try { dibujarRuleta(); } catch(e) { console.error('Error dibujando la ruleta:', e); }
 
-document.getElementById('girar-btn').addEventListener('click', () => {
-  if (girando) return;
-  girando = true;
-  document.getElementById('girar-btn').disabled = true;
-  document.getElementById('evidencia-zone').classList.remove('show');
-  evidenciaBase64 = null;
-  document.getElementById('evidencia-preview').classList.remove('show');
+try {
+  document.getElementById('girar-btn').addEventListener('click', () => {
+    if (girando) return;
+    girando = true;
+    document.getElementById('girar-btn').disabled = true;
+    document.getElementById('evidencia-zone').classList.remove('show');
+    evidenciaBase64 = null;
+    document.getElementById('evidencia-preview').classList.remove('show');
 
-  const spins = Math.floor(Math.random() * 5) + 5;
-  const degrees = Math.floor(Math.random() * 360);
-  rotation += (spins * 360) + degrees;
-  canvas.style.transform = `rotate(${rotation}deg)`;
-  document.getElementById('ruleta-result-icon').innerText = '🌀';
-  document.getElementById('ruleta-result-text').innerText = 'Girando…';
-  document.getElementById('ruleta-result-sub').innerText = '';
+    const spins = Math.floor(Math.random() * 5) + 5;
+    const degrees = Math.floor(Math.random() * 360);
+    rotation += (spins * 360) + degrees;
+    canvas.style.transform = `rotate(${rotation}deg)`;
+    document.getElementById('ruleta-result-icon').innerText = '🌀';
+    document.getElementById('ruleta-result-text').innerText = 'Girando…';
+    document.getElementById('ruleta-result-sub').innerText = '';
 
-  setTimeout(() => {
-    const finalAngle = rotation % 360;
-    const arc = 360 / opcionesActuales.length;
-    const normalized = (360 - finalAngle + 270) % 360;
-    const index = Math.floor(normalized / arc);
-    const reto = opcionesActuales[index];
-    retoActualRuleta = reto;
-    document.getElementById('ruleta-result-icon').innerText = reto.icon;
-    document.getElementById('ruleta-result-text').innerText = reto.txt;
-    document.getElementById('ruleta-result-sub').innerText = reto.sub;
-    document.getElementById('evidencia-zone').classList.add('show');
-    lanzarConfeti();
-    girando = false;
-    document.getElementById('girar-btn').disabled = false;
-  }, 4100);
-});
-
-/* Foto evidencia */
-document.getElementById('evidencia-file').addEventListener('change', e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  if (f.size > 4 * 1024 * 1024) { toast('La imagen es muy grande (>4MB)', 'err'); return; }
-  const r = new FileReader();
-  r.onload = ev => {
-    evidenciaBase64 = ev.target.result;
-    document.getElementById('evidencia-img').src = evidenciaBase64;
-    document.getElementById('evidencia-preview').classList.add('show');
-  };
-  r.readAsDataURL(f);
-});
-document.getElementById('evidencia-clear').addEventListener('click', () => {
-  evidenciaBase64 = null;
-  document.getElementById('evidencia-file').value = '';
-  document.getElementById('evidencia-preview').classList.remove('show');
-});
-document.getElementById('enviar-evidencia').addEventListener('click', async () => {
-  if (!retoActualRuleta) return;
-  if (!usuario) { toast('Configura tu nombre primero', 'err'); abrirModal('modal-user'); return; }
-  const btn = document.getElementById('enviar-evidencia');
-  btn.disabled = true; btn.innerText = 'Enviando…';
-  const r = await enviarBackend('ruleta', {
-    reto: retoActualRuleta.txt,
-    evidencia: evidenciaBase64 || '',
-    tieneFoto: !!evidenciaBase64,
-    carpetaDriveId: DRIVE_FOLDER_ID
+    setTimeout(() => {
+      const finalAngle = rotation % 360;
+      const arc = 360 / opcionesActuales.length;
+      const normalized = (360 - finalAngle + 270) % 360;
+      const index = Math.floor(normalized / arc);
+      const reto = opcionesActuales[index];
+      retoActualRuleta = reto;
+      document.getElementById('ruleta-result-icon').innerText = reto.icon;
+      document.getElementById('ruleta-result-text').innerText = reto.txt;
+      document.getElementById('ruleta-result-sub').innerText = reto.sub;
+      document.getElementById('evidencia-zone').classList.add('show');
+      lanzarConfeti();
+      girando = false;
+      document.getElementById('girar-btn').disabled = false;
+    }, 4100);
   });
-  btn.disabled = false; btn.innerText = '📤 Enviar evidencia';
-  if (r.ok) {
-    toast(r.fotoUrl ? '¡Foto guardada en el Drive del equipo! +10 pts' : '¡Reto completado! +10 pts', 'ok');
-  } else {
-    toast('Guardado local. (Backend no respondió)', 'info');
-  }
-  sumarPuntos(10);
-  document.getElementById('evidencia-zone').classList.remove('show');
-});
-document.getElementById('saltar-evidencia').addEventListener('click', () => {
-  document.getElementById('evidencia-zone').classList.remove('show');
-  evidenciaBase64 = null;
-  document.getElementById('evidencia-file').value = '';
-  document.getElementById('evidencia-preview').classList.remove('show');
-});
+
+  /* Foto evidencia */
+  document.getElementById('evidencia-file').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    if (f.size > 4 * 1024 * 1024) { toast('La imagen es muy grande (>4MB)', 'err'); return; }
+    const r = new FileReader();
+    r.onload = ev => {
+      evidenciaBase64 = ev.target.result;
+      document.getElementById('evidencia-img').src = evidenciaBase64;
+      document.getElementById('evidencia-preview').classList.add('show');
+    };
+    r.readAsDataURL(f);
+  });
+  document.getElementById('evidencia-clear').addEventListener('click', () => {
+    evidenciaBase64 = null;
+    document.getElementById('evidencia-file').value = '';
+    document.getElementById('evidencia-preview').classList.remove('show');
+  });
+  document.getElementById('enviar-evidencia').addEventListener('click', async () => {
+    if (!retoActualRuleta) return;
+    if (!usuario) { toast('Configura tu nombre primero', 'err'); abrirModal('modal-user'); return; }
+    const btn = document.getElementById('enviar-evidencia');
+    btn.disabled = true; btn.innerText = 'Enviando…';
+    const r = await enviarBackend('ruleta', {
+      reto: retoActualRuleta.txt,
+      evidencia: evidenciaBase64 || '',
+      tieneFoto: !!evidenciaBase64,
+      carpetaDriveId: DRIVE_FOLDER_ID
+    });
+    btn.disabled = false; btn.innerText = '📤 Enviar evidencia';
+    if (r.ok) {
+      toast(r.fotoUrl ? '¡Foto guardada en el Drive del equipo! +10 pts' : '¡Reto completado! +10 pts', 'ok');
+    } else {
+      toast('Guardado local. (Backend no respondió)', 'info');
+    }
+    sumarPuntos(10);
+    document.getElementById('evidencia-zone').classList.remove('show');
+  });
+  document.getElementById('saltar-evidencia').addEventListener('click', () => {
+    document.getElementById('evidencia-zone').classList.remove('show');
+    evidenciaBase64 = null;
+    document.getElementById('evidencia-file').value = '';
+    document.getElementById('evidencia-preview').classList.remove('show');
+  });
+} catch(e) { console.error('Error registrando eventos de la Ruleta:', e); }
 
 /* ════════════════════════════════════════════════════
    TAB 2 · EMOJIS (input + verificación)
@@ -1140,7 +1145,7 @@ async function verificarEmoji() {
 document.getElementById("emoji-input").addEventListener("keypress", e => {
   if (e.key === "Enter") verificarEmoji();
 });
-actualizarEmoji();
+try { actualizarEmoji(); } catch(e) { console.error('Error iniciando Emojis:', e); }
 
 /* ════════════════════════════════════════════════════
    TAB 4 · DETECTIVES + ACERTIJOS (todo con input)
@@ -1258,7 +1263,7 @@ async function verificarAcertijo(i) {
 function actualizarContadorAcertijos() {
   document.getElementById('acertijos-count').innerText = `${acertijosResueltos}/${acertijos.length}`;
 }
-renderAcertijos();
+try { renderAcertijos(); } catch(e) { console.error('Error iniciando Lógica/Acertijos:', e); }
 
 /* ════════════════════════════════════════════════════
    TAB 5 · HISTORIA INFINITA
@@ -1294,7 +1299,7 @@ function reiniciarHistoria() {
 document.getElementById("palabra-input").addEventListener("keypress", e => {
   if (e.key === "Enter") agregarPalabra();
 });
-actualizarLetraInfo();
+try { actualizarLetraInfo(); } catch(e) { console.error('Error iniciando Historia:', e); }
 
 /* ════════════════════════════════════════════════════
    TAB 6 · SONIDOS REALES (grabaciones reales, no simuladas)
@@ -1456,7 +1461,7 @@ async function lograrTrabalenguas() {
   });
   setTimeout(siguienteTrabalenguas, 800);
 }
-actualizarTrab();
+try { actualizarTrab(); } catch(e) { console.error('Error iniciando Trabalenguas:', e); }
 
 /* ════════════════════════════════════════════════════
    TAB 8 (NUEVA) · SEMÁFORO DE REACCIÓN
